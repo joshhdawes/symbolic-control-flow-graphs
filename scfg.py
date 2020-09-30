@@ -299,6 +299,18 @@ class CFG(object):
     def get_edges(self):
         return self.edges
 
+    def lines_to_edges(self, lines):
+        """
+        Given a path as a list of lines, construct the list of edges that correspond to that path.
+        """
+        path_edges = []
+        all_edges = self.get_edges()
+        for line in lines:
+            for edge in all_edges:
+                if hasattr(edge, "_instruction") and type(edge._instruction) is not str and edge._instruction.lineno == line:
+                    path_edges.append(edge)
+        return path_edges
+
     def process_block(self, block, starting_vertices=None, condition=[], closest_loop=None):
         """
         Given a block, a set of starting vertices and to put on the first edge,
@@ -816,7 +828,7 @@ class CFG(object):
 
         return current_vertices
 
-    def write_to_file(self, file_name):
+    def write_to_file(self, file_name, highlight):
         """
         Write the scfg in dot format to the file.
         """
@@ -830,7 +842,8 @@ class CFG(object):
                 graph.edge(
                     str(id(vertex)),
                     str(id(edge._target_state)),
-                    ""
+                    "",
+                    color="black" if edge not in highlight else "red"
                 )
         graph.render(file_name)
 
