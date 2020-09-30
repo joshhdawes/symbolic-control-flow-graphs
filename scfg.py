@@ -299,17 +299,55 @@ class CFG(object):
     def get_edges(self):
         return self.edges
 
-    def lines_to_edges(self, lines):
+    def lines_to_path(self, lines):
         """
         Given a path as a list of lines, construct the list of edges that correspond to that path.
+        This includes filling in holes in the path resulting from missing edges from control-flow.
         """
+        # get sequences of edges - this may have holes
         path_edges = []
         all_edges = self.get_edges()
         for line in lines:
             for edge in all_edges:
                 if hasattr(edge, "_instruction") and type(edge._instruction) is not str and edge._instruction.lineno == line:
                     path_edges.append(edge)
+
+        # fill in the holes by adding all edges on the shortest path found between every pair of consecutive edges
+        for (n, edge) in enumerate(path_edges[:-1]):
+            if edge._target_state is not path_edges[n+1]._source_state:
+                # there is a hole in the path - fill it with the shortest path
+                filler_path = self.get_shortest_path_between_vertices(edge._target_state, path_edges[n+1]._source_state)
+                path_edges = path_edges[:n] + filler_path + path_edges[n:]
+
         return path_edges
+
+    def get_shortest_path_between_vertices(self, source, target):
+        """
+        Recursive search to determine paths from source to target.
+        """
+        all_paths = []
+        for edge in source.edges:
+            target_vertex = edge._target_state
+            self._get_paths_between_vertices(target_vertex, target, [edge], all_paths)
+        return sorted(all_paths, key=len)[0]
+
+    def _get_paths_between_vertices(self, current_vertex, target, current_path, all_paths):
+        """
+        Process the current vertex - if we hit the target, return the path
+        """
+        # check for hitting the target
+        if current_vertex is target:
+            # recursive base case
+            # add a copy of the current path to the list of all paths
+            all_paths.append([e for e in current_path])
+        else:
+            # recurse on child elements, as long as we wouldn't repeat ourselves
+            for edge in current_vertex.edges:
+                if edge not in current_path:
+                    target_vertex = edge._target_state
+                    new_path = [e for e in current_path] + [edge]
+                    self._get_paths_between_vertices(target_vertex, target, new_path, all_paths)
+
 
     def process_block(self, block, starting_vertices=None, condition=[], closest_loop=None):
         """
