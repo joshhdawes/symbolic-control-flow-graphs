@@ -10,3 +10,4 @@ class Test(object):
         f()
       else:
         g()
+    c = 15

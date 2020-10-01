@@ -307,7 +307,7 @@ class ParseTree(object):
         graph.attr("graph", splines="true", fontsize="10")
         shape = "rectangle"
         for vertex in self._vertices:
-            colour = "black"
+            colour = "red" if type(vertex._symbol) is CFGVertex and len(vertex._children) == 0 else "black"
             graph.node(str(id(vertex)), scfg_element_to_dot(vertex._symbol), shape=shape, color=colour)
             for child in vertex._children:
                 graph.edge(

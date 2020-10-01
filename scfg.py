@@ -304,6 +304,7 @@ class CFG(object):
         Given a path as a list of lines, construct the list of edges that correspond to that path.
         This includes filling in holes in the path resulting from missing edges from control-flow.
         """
+        print("======================\nconverting lines to edges...")
         # get sequences of edges - this may have holes
         path_edges = []
         all_edges = self.get_edges()
@@ -312,12 +313,29 @@ class CFG(object):
                 if hasattr(edge, "_instruction") and type(edge._instruction) is not str and edge._instruction.lineno == line:
                     path_edges.append(edge)
 
+        print("\npath with holes:")
+        print(path_edges)
+
+        print("filling in holes...")
+
         # fill in the holes by adding all edges on the shortest path found between every pair of consecutive edges
-        for (n, edge) in enumerate(path_edges[:-1]):
-            if edge._target_state is not path_edges[n+1]._source_state:
+        # we go in reverse so we don't disrupt indices of elements ahead in the list
+        length = len(path_edges)
+        for n in range(length-1):
+            # transform n so that iteration is in reverse
+            n = length-2-n
+            print("\n")
+            print("index %i\n" % n)
+            if path_edges[n]._target_state is not path_edges[n+1]._source_state:
+                print("found hole between")
+                print(path_edges[n], path_edges[n+1])
                 # there is a hole in the path - fill it with the shortest path
-                filler_path = self.get_shortest_path_between_vertices(edge._target_state, path_edges[n+1]._source_state)
-                path_edges = path_edges[:n] + filler_path + path_edges[n:]
+                filler_path = self.get_shortest_path_between_vertices(path_edges[n]._target_state, path_edges[n+1]._source_state)
+                path_edges = path_edges[:n+1] + filler_path + path_edges[n+1:]
+                print("filled hole with")
+                print(filler_path)
+                print("resulting path is")
+                print(path_edges)
 
         return path_edges
 
@@ -325,6 +343,7 @@ class CFG(object):
         """
         Recursive search to determine paths from source to target.
         """
+        print("finding path from %s to %s" % (source, target))
         all_paths = []
         for edge in source.edges:
             target_vertex = edge._target_state
@@ -866,7 +885,7 @@ class CFG(object):
 
         return current_vertices
 
-    def write_to_file(self, file_name, highlight):
+    def write_to_file(self, file_name, highlight=[]):
         """
         Write the scfg in dot format to the file.
         """
@@ -954,10 +973,15 @@ class CFG(object):
                 loop_skip_edge = \
                     list(filter(lambda edge: edge._target_state._name_changed == ["post-loop"], vertex.edges))[0]
                 final_map[vertex] = [[loop_skip_edge]]
+
                 loop_entry_edge = \
                     list(filter(lambda edge: edge._target_state._name_changed != ["post-loop"], vertex.edges))[
                         0]
-                final_map[vertex].append([loop_entry_edge, loop_entry_edge._target_state])
+
+                if loop_entry_edge._target_state._name_changed == ["conditional"]:
+                    final_map[vertex].append([loop_entry_edge, loop_entry_edge._target_state, loop_entry_edge._target_state.post_conditional_vertex])
+                else:
+                    final_map[vertex].append([loop_entry_edge, loop_entry_edge._target_state])
 
 
             elif vertex._name_changed in [["conditional"], ["try-catch"]]:
